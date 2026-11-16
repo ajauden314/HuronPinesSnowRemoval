@@ -21,6 +21,10 @@
     h1{font-size:clamp(30px,5vw,46px);margin:12px 0 8px;letter-spacing:-.04em}
     .hero p{color:#d7e7ee;max-width:600px;line-height:1.65;margin:0}
     .panel{background:white;border:1px solid var(--line);border-radius:20px;padding:25px;box-shadow:0 10px 35px #1b38500a}
+    #register-form{scroll-margin-top:24px}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+    .hero-actions a{display:inline-block;text-decoration:none}
+    .text-link{display:inline-block;margin-top:14px;color:var(--blue);font-weight:800;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0}
     .auth-grid,.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
     h2{font-size:23px;margin:0 0 7px}h3{font-size:18px;margin:0 0 16px}
     .sub{color:var(--muted);line-height:1.55;margin:0 0 20px}
@@ -55,17 +59,18 @@
 <div class="shell">
   <header class="top">
     <div class="brand"><div class="mark">❄</div><div>HURON PINES<br><span style="font-size:11px;color:#718392;letter-spacing:.16em">CUSTOMER PORTAL</span></div></div>
-    <a href="index.html">← Back to website</a>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap"><a href="#signup-section" id="signup-link">Sign up</a><a href="index.html">← Back to website</a></div>
   </header>
 
   <section class="hero">
     <div class="eyebrow">YOUR DRIVEWAY. OUR PRIORITY.</div>
     <h1>Winter service, made simple.</h1>
     <p>Manage your seasonal package, request an additional one-time plow-out, and follow the status of your service requests from one place.</p>
+    <div class="hero-actions"><a class="btn ice" href="#signup-section" id="hero-signup">Create customer account ↓</a></div>
   </section>
 
   <section id="auth-view" class="auth-grid">
-    <form id="register-form" class="panel">
+    <form id="register-form" class="panel" name="signup-section">
       <h2>Create your account</h2><p class="sub">Set up your Huron Pines customer account to manage your service.</p>
       <label for="reg-name">Full name</label><input id="reg-name" required maxlength="100" autocomplete="name">
       <label for="reg-phone">Phone number</label><input id="reg-phone" type="tel" required maxlength="30" autocomplete="tel">
@@ -80,9 +85,23 @@
       <label for="login-password">Password</label><input id="login-password" type="password" required autocomplete="current-password">
       <button class="btn full" type="submit">Log in</button>
       <button id="forgot-password" type="button" class="btn outline full">Reset password by email</button>
+      <button id="login-signup-link" type="button" class="text-link">Need an account? Sign up</button>
     </form>
   </section>
   <div id="auth-message" class="status hidden" role="status" aria-live="polite"></div>
+
+  <section id="password-reset-panel" class="panel hidden" style="margin-top:22px" aria-labelledby="reset-heading">
+    <h2 id="reset-heading">Choose a new password</h2>
+    <p class="sub">Enter and confirm your new password below.</p>
+    <form id="password-reset-form">
+      <label for="reset-password">New password</label>
+      <input id="reset-password" type="password" minlength="8" required autocomplete="new-password">
+      <label for="reset-password-confirm">Confirm new password</label>
+      <input id="reset-password-confirm" type="password" minlength="8" required autocomplete="new-password">
+      <button id="reset-password-submit" class="btn primary full" type="submit">Save new password</button>
+    </form>
+    <div id="reset-password-message" class="status hidden" role="status" aria-live="polite"></div>
+  </section>
 
   <main id="dashboard" class="hidden">
     <section class="panel">
@@ -215,10 +234,87 @@
     try{const {error}=await client.auth.signInWithPassword({email:$("login-email").value.trim(),password:$("login-password").value});if(error)throw error;await refresh();}
     catch(err){message($("auth-message"),errorText(err));}finally{b.disabled=false;}
   });
-  $("forgot-password").addEventListener("click",async()=>{
-    const email=$("login-email").value.trim();if(!email){message($("auth-message"),"Enter your email address first.");return;}
-    const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.href});message($("auth-message"),error?errorText(error):"Password reset email sent.",!error);
+  const PASSWORD_RESET_REDIRECT = new URL("customer-portal.html", window.location.href).href;
+  let passwordRecoveryActive = false;
+
+  function showPasswordReset() {
+    passwordRecoveryActive = true;
+    $("auth-view").classList.add("hidden");
+    $("dashboard").classList.add("hidden");
+    $("seasonal-panel").classList.add("hidden");
+    $("auth-message").classList.add("hidden");
+    $("password-reset-panel").classList.remove("hidden");
+    $("reset-password").focus();
+    $("password-reset-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  $("forgot-password").addEventListener("click", async () => {
+    const email = $("login-email").value.trim();
+    if (!email) {
+      message($("auth-message"), "Enter your email address first.");
+      $("login-email").focus();
+      return;
+    }
+
+    const button = $("forgot-password");
+    button.disabled = true;
+    hideMessage($("auth-message"));
+    try {
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: PASSWORD_RESET_REDIRECT
+      });
+      if (error) throw error;
+      message($("auth-message"), "If an account exists for that email, a password reset link has been sent. Check your inbox.", true);
+    } catch (err) {
+      message($("auth-message"), errorText(err));
+    } finally {
+      button.disabled = false;
+    }
   });
+
+  $("password-reset-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const password = $("reset-password").value;
+    const confirmation = $("reset-password-confirm").value;
+    const button = $("reset-password-submit");
+    button.disabled = true;
+    hideMessage($("reset-password-message"));
+
+    try {
+      if (password.length < 8) throw new Error("Your password must be at least 8 characters.");
+      if (password !== confirmation) throw new Error("The passwords do not match.");
+
+      const { error } = await client.auth.updateUser({ password });
+      if (error) throw error;
+
+      passwordRecoveryActive = false;
+      $("password-reset-panel").classList.add("hidden");
+      $("password-reset-form").reset();
+      await client.auth.signOut();
+      $("auth-view").classList.remove("hidden");
+      $("dashboard").classList.add("hidden");
+      message($("auth-message"), "Your password has been updated. Log in using your new password.", true);
+      $("login-email").focus();
+      $("auth-view").scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) {
+      message($("reset-password-message"), errorText(err));
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  function scrollToSignup() {
+    if ($("auth-view").classList.contains("hidden")) {
+      message($("auth-message"), "Log out first if you want to create a different customer account.");
+      return;
+    }
+    $("register-form").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => $("reg-name").focus({ preventScroll: true }), 450);
+  }
+
+  $("signup-link").addEventListener("click", (e) => { e.preventDefault(); scrollToSignup(); });
+  $("hero-signup").addEventListener("click", (e) => { e.preventDefault(); scrollToSignup(); });
+  $("login-signup-link").addEventListener("click", scrollToSignup);
   $("logout").addEventListener("click",async()=>{await client.auth.signOut();await refresh();});
   $("profile-form").addEventListener("submit",async e=>{
     e.preventDefault();const {error}=await client.from("customer_profiles").upsert({id:user.id,full_name:$("profile-name").value.trim(),phone:$("profile-phone").value.trim(),email:user.email||"",street_address:$("profile-address").value.trim()});
@@ -247,7 +343,20 @@
       message($("season-message"),"Seasonal signup submitted. Call 248-500-4692 to arrange upfront payment and confirmation.",true);await refresh();
     }catch(err){message($("season-message"),errorText(err));}finally{b.disabled=false;}
   });
-  client.auth.onAuthStateChange(()=>setTimeout(refresh,0));
+  // Supabase emits PASSWORD_RECOVERY after a valid recovery link is opened.
+  // Keep the auth callback synchronous; defer UI/database work to avoid auth-lock deadlocks.
+  client.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY" && session) {
+      setTimeout(showPasswordReset, 0);
+      return;
+    }
+    if (event === "SIGNED_OUT") {
+      passwordRecoveryActive = false;
+      $("password-reset-panel").classList.add("hidden");
+    }
+    if (!passwordRecoveryActive) setTimeout(refresh, 0);
+  });
+
   refresh();
 </script>
 </body>
