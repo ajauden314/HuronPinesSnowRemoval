@@ -73,6 +73,8 @@
     .modal-card .dashboard-head{align-items:flex-start}
     .plan-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
     .plan-actions select{max-width:220px}
+    .btn.call{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--green);color:#fff;text-decoration:none;text-align:center}
+    .head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .btn.danger{background:#a63832;color:#fff}
     .btn.small{padding:9px 12px;font-size:13px}
     .request-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -132,7 +134,10 @@
     <section class="panel">
       <div class="dashboard-head">
         <div><div class="eyebrow" style="color:#17648a">CUSTOMER DASHBOARD</div><div id="welcome" class="welcome">Welcome</div><div id="user-email" class="email"></div></div>
-        <button id="logout" class="btn outline">Log out</button>
+        <div class="head-actions">
+          <a id="call-button" class="btn call" href="tel:+12485004692" aria-label="Call Huron Pines Snow Removal at 248-500-4692">📞 Call 248-500-4692 to arrange payment &amp; service</a>
+          <button id="logout" class="btn outline">Log out</button>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="grid">
