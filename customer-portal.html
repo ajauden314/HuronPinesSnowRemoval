@@ -287,6 +287,44 @@
     address.textContent = "Service address: " + data.street_address;
     box.append(title, price, meta, address);
 
+    // Accepted manual/on-demand seasonal customers can request a plow-out directly.
+    if ((data.status || "").toLowerCase() === "accepted" &&
+        (data.service_type || "").toLowerCase() === "on-demand") {
+      const plowNowButton = document.createElement("button");
+      plowNowButton.type = "button";
+      plowNowButton.className = "btn primary full";
+      plowNowButton.textContent = "Plow out now!";
+      plowNowButton.addEventListener("click", async () => {
+        plowNowButton.disabled = true;
+        hideMessage($("extra-message"));
+        try {
+          const request = {
+            user_id: user.id,
+            service_address: data.street_address,
+            requested_timing: "As soon as possible",
+            notes: "Requested from accepted manual seasonal plan.",
+            request_kind: "extra_plowout"
+          };
+          const { error: insertError } = await client
+            .from("service_requests")
+            .insert(request);
+          if (insertError) throw insertError;
+
+          message(
+            $("extra-message"),
+            "Your plow-out request has been submitted! It is pending review and Huron Pines will confirm availability.",
+            true
+          );
+          await loadRequests();
+        } catch (err) {
+          message($("extra-message"), errorText(err));
+        } finally {
+          plowNowButton.disabled = false;
+        }
+      });
+      box.append(plowNowButton);
+    }
+
     if (!["cancelled", "completed", "expired"].includes((data.status || "").toLowerCase())) {
       const actions = document.createElement("div");
       actions.className = "plan-actions";
