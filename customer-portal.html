@@ -124,6 +124,8 @@
         <div>
           <div class="section-title"><div class="icon">✦</div><h3 style="margin:0">Your seasonal plan</h3></div>
           <div id="plan-summary" class="plan-box"><p class="muted">Loading your plan…</p></div>
+          <button id="plow-now-button" type="button" class="btn primary full hidden">Plow out now!</button>
+          <div id="plow-now-message" class="status hidden" role="status" aria-live="polite"></div>
           <button id="show-seasonal" class="btn primary full">Sign up for a seasonal package</button>
         </div>
         <div>
@@ -218,6 +220,7 @@
   const $ = id => document.getElementById(id);
   let user = null;
   let pendingSeasonalSignupId = null;
+  let currentSeasonalPlan = null;
 
   function message(el, text, ok=false) { el.textContent=text; el.className="status"+(ok?" ok":""); }
   function hideMessage(el) { el.textContent=""; el.classList.add("hidden"); }
@@ -256,6 +259,13 @@
       .maybeSingle();
 
     const box = $("plan-summary");
+    const plowNowButton = $("plow-now-button");
+    const plowNowMessage = $("plow-now-message");
+    currentSeasonalPlan = data || null;
+    plowNowButton.classList.add("hidden");
+    plowNowButton.disabled = false;
+    plowNowMessage.classList.add("hidden");
+    plowNowMessage.textContent = "";
     box.replaceChildren();
 
     if (error) {
@@ -287,48 +297,15 @@
     address.textContent = "Service address: " + data.street_address;
     box.append(title, price, meta, address);
 
-    // Show the button for an accepted manual plan. Admin dashboards may store
-    // acceptance as "accepted", "approved", or "active", and manual service
-    // may be stored as either "Manual" or "On-demand".
-    const planStatus = (data.status || "").trim().toLowerCase();
-    const serviceMethod = (data.service_type || "").trim().toLowerCase();
-    const planIsAccepted = ["accepted", "approved", "active"].includes(planStatus);
-    const planIsManual = ["manual", "on-demand", "ondemand"].includes(serviceMethod);
-
-    if (planIsAccepted && planIsManual) {
-      const plowNowButton = document.createElement("button");
-      plowNowButton.type = "button";
-      plowNowButton.className = "btn primary full";
-      plowNowButton.textContent = "Plow out now!";
-      plowNowButton.addEventListener("click", async () => {
-        plowNowButton.disabled = true;
-        hideMessage($("extra-message"));
-        try {
-          const request = {
-            user_id: user.id,
-            service_address: data.street_address,
-            requested_timing: "As soon as possible",
-            notes: "Requested from accepted manual seasonal plan.",
-            request_kind: "extra_plowout"
-          };
-          const { error: insertError } = await client
-            .from("service_requests")
-            .insert(request);
-          if (insertError) throw insertError;
-
-          message(
-            $("extra-message"),
-            "Your plow-out request has been submitted! It is pending review and Huron Pines will confirm availability.",
-            true
-          );
-          await loadRequests();
-        } catch (err) {
-          message($("extra-message"), errorText(err));
-        } finally {
-          plowNowButton.disabled = false;
-        }
-      });
-      box.append(plowNowButton);
+    // Display the separate one-time plow request button for accepted manual plans.
+    // Treat common status/method spellings consistently so capitalization and
+    // values such as "Manual / On-demand" do not accidentally hide the button.
+    const planStatus = String(data.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+    const serviceMethod = String(data.service_type || "").trim().toLowerCase();
+    const planIsManual = /manual|on.?demand/.test(serviceMethod);
+    const planIsAccepted = /accepted|approved|active|confirmed/.test(planStatus);
+    if (planIsManual && planIsAccepted) {
+      plowNowButton.classList.remove("hidden");
     }
 
     if (!["cancelled", "completed", "expired"].includes((data.status || "").toLowerCase())) {
@@ -380,6 +357,38 @@
       box.append(note);
     }
   }
+
+  $("plow-now-button").addEventListener("click", async () => {
+    const button = $("plow-now-button");
+    const plan = currentSeasonalPlan;
+    if (!user || !plan) return;
+
+    const serviceAddress = String(plan.street_address || "").trim();
+    if (!serviceAddress) {
+      message($("plow-now-message"), "Please add a service address to your seasonal plan before requesting a plow-out.");
+      return;
+    }
+
+    button.disabled = true;
+    hideMessage($("plow-now-message"));
+    try {
+      const { error: insertError } = await client.from("service_requests").insert({
+        user_id: user.id,
+        service_address: serviceAddress,
+        requested_timing: "As soon as possible",
+        notes: "Requested from accepted manual seasonal plan.",
+        request_kind: "extra_plowout"
+      });
+      if (insertError) throw insertError;
+
+      message($("plow-now-message"), "Your plow-out request has been submitted! It is pending review and Huron Pines will confirm availability.", true);
+      await loadRequests();
+    } catch (err) {
+      message($("plow-now-message"), errorText(err));
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   async function loadRequests() {
     const list = $("request-list");
