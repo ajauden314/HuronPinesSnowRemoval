@@ -287,9 +287,15 @@
     address.textContent = "Service address: " + data.street_address;
     box.append(title, price, meta, address);
 
-    // Accepted manual/on-demand seasonal customers can request a plow-out directly.
-    if ((data.status || "").toLowerCase() === "accepted" &&
-        (data.service_type || "").toLowerCase() === "on-demand") {
+    // Show the button for an accepted manual plan. Admin dashboards may store
+    // acceptance as "accepted", "approved", or "active", and manual service
+    // may be stored as either "Manual" or "On-demand".
+    const planStatus = (data.status || "").trim().toLowerCase();
+    const serviceMethod = (data.service_type || "").trim().toLowerCase();
+    const planIsAccepted = ["accepted", "approved", "active"].includes(planStatus);
+    const planIsManual = ["manual", "on-demand", "ondemand"].includes(serviceMethod);
+
+    if (planIsAccepted && planIsManual) {
       const plowNowButton = document.createElement("button");
       plowNowButton.type = "button";
       plowNowButton.className = "btn primary full";
