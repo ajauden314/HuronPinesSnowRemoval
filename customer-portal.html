@@ -53,6 +53,21 @@
     .divider{height:1px;background:var(--line);margin:22px 0}
     .notice{background:#fff8e8;border:1px solid #f2dfb4;color:#75531b;padding:14px;border-radius:12px;font-size:13px;line-height:1.5;margin-top:14px}
 
+    /* Approval status banner shown at the top of the seasonal plan box */
+    .approval{display:flex;gap:12px;align-items:flex-start;border-radius:13px;padding:13px 14px;margin-bottom:16px;border:2px solid}
+    .approval-icon{flex:0 0 32px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:17px;color:#fff}
+    .approval-title{font-size:16px;font-weight:800;letter-spacing:-.01em}
+    .approval-text{font-size:13px;line-height:1.5;margin-top:3px}
+    .approval.approved{background:#e7f5ed;border-color:#16734a;color:#0f4d31}
+    .approval.approved .approval-icon{background:#16734a}
+    .approval.pending{background:#fff8e8;border-color:#e3b341;color:#6b4a0f}
+    .approval.pending .approval-icon{background:#d99a12}
+    .approval.declined{background:#fff0ed;border-color:#a63832;color:#7a2620}
+    .approval.declined .approval-icon{background:#a63832}
+    .approval.inactive{background:#eef2f5;border-color:#9aa9b4;color:#4a5b68}
+    .approval.inactive .approval-icon{background:#7b8c98}
+    .plow-locked{margin-top:14px;padding:12px 14px;border-radius:12px;background:#eef2f5;border:1px dashed #9aa9b4;color:#4a5b68;font-size:13px;line-height:1.5;font-weight:600}
+
     .modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(8,25,38,.68);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
     .modal-card{width:min(780px,100%);max-height:calc(100vh - 40px);overflow-y:auto;position:relative;margin:auto;padding:26px}
     .modal-card .dashboard-head{align-items:flex-start}
@@ -124,7 +139,7 @@
         <div>
           <div class="section-title"><div class="icon">✦</div><h3 style="margin:0">Your seasonal plan</h3></div>
           <div id="plan-summary" class="plan-box"><p class="muted">Loading your plan…</p></div>
-          <button id="plow-now-button" type="button" class="btn primary full hidden">Plow out now!</button>
+          <button id="plow-now-button" type="button" class="btn primary full hidden">Plow Out Now!</button>
           <div id="plow-now-message" class="status hidden" role="status" aria-live="polite"></div>
           <button id="show-seasonal" class="btn primary full">Sign up for a seasonal package</button>
         </div>
@@ -249,6 +264,28 @@
     await loadPlan();
     await loadRequests();
   }
+
+  // Builds the approval banner shown at the top of the seasonal plan box.
+  function buildApprovalBanner(kind, titleText, bodyText, iconText) {
+    const banner = document.createElement("div");
+    banner.className = "approval " + kind;
+    banner.setAttribute("role", "status");
+    const icon = document.createElement("div");
+    icon.className = "approval-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = iconText;
+    const wrap = document.createElement("div");
+    const t = document.createElement("div");
+    t.className = "approval-title";
+    t.textContent = titleText;
+    const b = document.createElement("div");
+    b.className = "approval-text";
+    b.textContent = bodyText;
+    wrap.append(t, b);
+    banner.append(icon, wrap);
+    return banner;
+  }
+
   async function loadPlan() {
     const {data, error} = await client
       .from("seasonal_signups")
@@ -283,6 +320,49 @@
       return;
     }
 
+    // Work out approval state. Treat common status/method spellings consistently
+    // so capitalization and values such as "Manual / On-demand" are handled.
+    const planStatus = String(data.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+    const serviceMethod = String(data.service_type || "").trim().toLowerCase();
+    const planIsManual = /manual|on.?demand/.test(serviceMethod);
+    const planIsAccepted = /accepted|approved|active|confirmed/.test(planStatus);
+    const planIsDeclined = /declined|denied|rejected/.test(planStatus);
+    const planIsInactive = /cancelled|canceled|completed|expired/.test(planStatus);
+
+    let banner;
+    if (planIsAccepted) {
+      banner = buildApprovalBanner(
+        "approved",
+        "Approved",
+        planIsManual
+          ? "Your seasonal plan has been approved. You can request a plow-out any time with the Plow Out Now! button below."
+          : "Your seasonal plan has been approved.",
+        "✓"
+      );
+    } else if (planIsDeclined) {
+      banner = buildApprovalBanner(
+        "declined",
+        "Not approved",
+        "Your seasonal signup was not approved. Please call 248-500-4692 for details.",
+        "✕"
+      );
+    } else if (planIsInactive) {
+      banner = buildApprovalBanner(
+        "inactive",
+        "Plan " + planStatus,
+        "This seasonal plan is no longer active.",
+        "–"
+      );
+    } else {
+      banner = buildApprovalBanner(
+        "pending",
+        "Pending approval",
+        "Your seasonal signup is waiting for approval from Huron Pines. Call 248-500-4692 to arrange upfront payment and confirmation.",
+        "!"
+      );
+    }
+    box.append(banner);
+
     const title = document.createElement("strong");
     title.textContent = data.package_name + " package";
     const price = document.createElement("div");
@@ -297,15 +377,14 @@
     address.textContent = "Service address: " + data.street_address;
     box.append(title, price, meta, address);
 
-    // Display the separate one-time plow request button for accepted manual plans.
-    // Treat common status/method spellings consistently so capitalization and
-    // values such as "Manual / On-demand" do not accidentally hide the button.
-    const planStatus = String(data.status || "").trim().toLowerCase().replace(/[_-]+/g, " ");
-    const serviceMethod = String(data.service_type || "").trim().toLowerCase();
-    const planIsManual = /manual|on.?demand/.test(serviceMethod);
-    const planIsAccepted = /accepted|approved|active|confirmed/.test(planStatus);
+    // The "Plow Out Now!" button only appears for approved manual / on-demand plans.
     if (planIsManual && planIsAccepted) {
       plowNowButton.classList.remove("hidden");
+    } else if (planIsManual && !planIsDeclined && !planIsInactive) {
+      const locked = document.createElement("div");
+      locked.className = "plow-locked";
+      locked.textContent = "🔒 The Plow Out Now! button will unlock once your manual seasonal plan is approved.";
+      box.append(locked);
     }
 
     if (!["cancelled", "completed", "expired"].includes((data.status || "").toLowerCase())) {
