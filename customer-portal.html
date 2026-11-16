@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Portal | Huron Pines Snow Removal</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--ink:#142b3d;--muted:#718392;--blue:#17648a;--ice:#b8e6f2;--bg:#f3f7fa;--line:#dce6ec;--white:#fff;--green:#16734a}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"DM Sans",sans-serif}
+    button,input,select,textarea{font:inherit}button{cursor:pointer}
+    .shell{max-width:1180px;margin:auto;padding:28px 22px 60px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:30px}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.04em}
+    .mark{width:42px;height:42px;border-radius:14px;background:var(--ink);color:var(--ice);display:grid;place-items:center;font-size:23px}
+    .top a{color:var(--blue);font-weight:700;text-decoration:none}
+    .hero{background:linear-gradient(120deg,#10283d,#1c5472);color:white;border-radius:25px;padding:34px 38px;margin-bottom:25px;position:relative;overflow:hidden}
+    .hero:after{content:"❄";position:absolute;right:45px;top:-30px;font-size:190px;color:#ffffff12}
+    .eyebrow{font-size:12px;letter-spacing:.2em;font-weight:800;color:#a8dff0}
+    h1{font-size:clamp(30px,5vw,46px);margin:12px 0 8px;letter-spacing:-.04em}
+    .hero p{color:#d7e7ee;max-width:600px;line-height:1.65;margin:0}
+    .panel{background:white;border:1px solid var(--line);border-radius:20px;padding:25px;box-shadow:0 10px 35px #1b38500a}
+    .auth-grid,.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    h2{font-size:23px;margin:0 0 7px}h3{font-size:18px;margin:0 0 16px}
+    .sub{color:var(--muted);line-height:1.55;margin:0 0 20px}
+    label{display:block;font-size:13px;font-weight:700;margin:13px 0 6px}
+    input,select,textarea{width:100%;border:1px solid #cbd8e0;border-radius:11px;padding:12px 13px;background:#fff;color:var(--ink);min-height:46px}
+    textarea{resize:vertical}
+    input:focus,select:focus,textarea:focus{outline:3px solid #b8e6f2;border-color:#4a9ab9}
+    .btn{border:0;border-radius:11px;padding:13px 18px;font-weight:800;background:var(--ink);color:white}
+    .btn.primary{background:var(--blue);color:white}.btn.ice{background:var(--ice);color:var(--ink)}
+    .btn.outline{background:white;color:var(--ink);border:1px solid var(--line)}
+    .btn:disabled{opacity:.55;cursor:wait}.full{width:100%;margin-top:17px}
+    .status{padding:13px 15px;border-radius:11px;background:#fff0ed;color:#963b2d;font-weight:700;margin-top:15px}
+    .status.ok{background:#e7f5ed;color:#17613e}
+    .hidden{display:none!important}
+    .dashboard-head{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+    .welcome{font-size:27px;font-weight:800;letter-spacing:-.03em}
+    .email{color:var(--muted);font-size:14px;margin-top:4px}
+    .section-title{display:flex;align-items:center;gap:10px;margin-bottom:15px}
+    .icon{width:34px;height:34px;border-radius:10px;background:#e5f4f8;color:var(--blue);display:grid;place-items:center;font-weight:900}
+    .plan-box{background:#f2f8fb;border:1px solid #d8eaf1;border-radius:15px;padding:18px}
+    .plan-price{font-size:29px;font-weight:800;margin:6px 0}
+    .pill{display:inline-block;border-radius:99px;padding:5px 10px;background:#eaf2f6;color:#35556a;font-size:12px;font-weight:800;text-transform:capitalize}
+    .request{border:1px solid var(--line);border-radius:13px;padding:15px;margin-top:11px}
+    .request strong{display:block}.request small{color:var(--muted)}
+    .muted{color:var(--muted);font-size:14px;line-height:1.5}
+    .divider{height:1px;background:var(--line);margin:22px 0}
+    .notice{background:#fff8e8;border:1px solid #f2dfb4;color:#75531b;padding:14px;border-radius:12px;font-size:13px;line-height:1.5;margin-top:14px}
+    @media(max-width:760px){.auth-grid,.grid{grid-template-columns:1fr}.hero{padding:27px 23px}.shell{padding:18px 14px 40px}.panel{padding:20px}.hero:after{right:-15px}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand"><div class="mark">❄</div><div>HURON PINES<br><span style="font-size:11px;color:#718392;letter-spacing:.16em">CUSTOMER PORTAL</span></div></div>
+    <a href="index.html">← Back to website</a>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">YOUR DRIVEWAY. OUR PRIORITY.</div>
+    <h1>Winter service, made simple.</h1>
+    <p>Manage your seasonal package, request an additional one-time plow-out, and follow the status of your service requests from one place.</p>
+  </section>
+
+  <section id="auth-view" class="auth-grid">
+    <form id="register-form" class="panel">
+      <h2>Create your account</h2><p class="sub">Set up your Huron Pines customer account to manage your service.</p>
+      <label for="reg-name">Full name</label><input id="reg-name" required maxlength="100" autocomplete="name">
+      <label for="reg-phone">Phone number</label><input id="reg-phone" type="tel" required maxlength="30" autocomplete="tel">
+      <label for="reg-email">Email address</label><input id="reg-email" type="email" required autocomplete="email">
+      <label for="reg-password">Password</label><input id="reg-password" type="password" required minlength="8" autocomplete="new-password">
+      <button class="btn primary full" type="submit">Create account</button>
+      <p class="muted">Use at least 8 characters. Email confirmation must be disabled in the Supabase project settings for instant account access.</p>
+    </form>
+    <form id="login-form" class="panel">
+      <h2>Welcome back</h2><p class="sub">Log in to view your plan and request service.</p>
+      <label for="login-email">Email address</label><input id="login-email" type="email" required autocomplete="email">
+      <label for="login-password">Password</label><input id="login-password" type="password" required autocomplete="current-password">
+      <button class="btn full" type="submit">Log in</button>
+      <button id="forgot-password" type="button" class="btn outline full">Reset password by email</button>
+    </form>
+  </section>
+  <div id="auth-message" class="status hidden" role="status" aria-live="polite"></div>
+
+  <main id="dashboard" class="hidden">
+    <section class="panel">
+      <div class="dashboard-head">
+        <div><div class="eyebrow" style="color:#17648a">CUSTOMER DASHBOARD</div><div id="welcome" class="welcome">Welcome</div><div id="user-email" class="email"></div></div>
+        <button id="logout" class="btn outline">Log out</button>
+      </div>
+      <div class="divider"></div>
+      <div class="grid">
+        <div>
+          <div class="section-title"><div class="icon">✦</div><h3 style="margin:0">Your seasonal plan</h3></div>
+          <div id="plan-summary" class="plan-box"><p class="muted">Loading your plan…</p></div>
+          <button id="show-seasonal" class="btn primary full">Sign up for a seasonal package</button>
+        </div>
+        <div>
+          <div class="section-title"><div class="icon">❄</div><h3 style="margin:0">Request a one-time plow-out</h3></div>
+          <p class="muted">Use this when your included plow-outs have run out, or when you need a separate visit. This is a separate, one-time service request and is subject to availability.</p>
+          <form id="extra-form">
+            <label for="extra-address">Service address</label><input id="extra-address" required maxlength="200">
+            <label for="extra-when">When do you need service?</label>
+            <select id="extra-when"><option>As soon as possible</option><option>Today</option><option>Tomorrow</option></select>
+            <label for="extra-notes">Notes (optional)</label><textarea id="extra-notes" rows="3" maxlength="500" placeholder="Driveway details, parked vehicles, etc."></textarea>
+            <button id="extra-submit" class="btn primary full" type="submit">Request one-time plow-out</button>
+          </form>
+          <div class="notice">Submitting a request does not guarantee immediate service. Huron Pines will review the request and contact you to confirm availability and arrange payment.</div>
+          <div id="extra-message" class="status hidden" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="grid">
+        <div><div class="section-title"><div class="icon">↗</div><h3 style="margin:0">Your service requests</h3></div><div id="request-list"><p class="muted">Loading…</p></div></div>
+        <div><div class="section-title"><div class="icon">☷</div><h3 style="margin:0">Your account details</h3></div>
+          <form id="profile-form">
+            <label for="profile-name">Full name</label><input id="profile-name" required maxlength="100">
+            <label for="profile-phone">Phone</label><input id="profile-phone" type="tel" required maxlength="30">
+            <label for="profile-address">Default service address</label><input id="profile-address" maxlength="200">
+            <button class="btn outline full" type="submit">Save account details</button>
+          </form>
+          <div id="profile-message" class="status hidden" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="seasonal-panel" class="panel hidden" style="margin-top:22px">
+    <div class="dashboard-head"><div><h2>Choose your seasonal package</h2><p class="sub">2026–27 season · December 1, 2026 – March 1, 2027</p></div><button id="hide-seasonal" class="btn outline">Close</button></div>
+    <form id="seasonal-form" class="grid">
+      <div><label for="season-package">Package</label><select id="season-package" required><option value="">Choose package</option><option value="Essential">Essential — $199 · 5 plow-outs</option><option value="Plus">Plus — $329 · 10 plow-outs</option><option value="Complete">Complete — $449 · 15 plow-outs</option></select>
+      <label for="season-method">Service method</label><select id="season-method" required><option value="Automatic">Automatic</option><option value="On-demand">On-demand</option></select>
+      <label for="season-address">Property address</label><input id="season-address" required maxlength="200">
+      <label for="season-notes">Property notes (optional)</label><textarea id="season-notes" rows="3" maxlength="500"></textarea></div>
+      <div><p class="muted">By submitting, you agree that automatic service is triggered at 2 inches of accumulated snowfall, on-demand and one-time requests are subject to availability, service hours are 6 AM–10 PM subject to safe operating conditions, and seasonal payment is due upfront. Payment is arranged separately by phone.</p>
+      <label style="display:flex;gap:10px;align-items:flex-start"><input id="season-terms" type="checkbox" required style="width:19px;min-height:19px;margin:2px 0">I agree to the customer service agreement.</label>
+      <button id="season-submit" class="btn primary full" type="submit">Submit seasonal signup</button></div>
+    </form>
+    <div id="season-message" class="status hidden" role="status" aria-live="polite"></div>
+  </section>
+</div>
+<script>
+  const SUPABASE_URL = "https://jldqxtaswbbvkovvpoma.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CqwaUxjcQY3euOTKfYrnEw_jTOv34Uo";
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const $ = id => document.getElementById(id);
+  let user = null;
+
+  function message(el, text, ok=false) { el.textContent=text; el.className="status"+(ok?" ok":""); }
+  function hideMessage(el) { el.textContent=""; el.classList.add("hidden"); }
+  function errorText(e) {
+    if (/Invalid login credentials/i.test(e?.message||"")) return "Email or password is incorrect.";
+    if (/User already registered/i.test(e?.message||"")) return "That email already has an account. Please log in.";
+    return e?.message || "Something went wrong. Please try again.";
+  }
+  async function refresh() {
+    const {data:{user:authUser}} = await client.auth.getUser();
+    user=authUser;
+    $("auth-view").classList.toggle("hidden",!!user);
+    $("dashboard").classList.toggle("hidden",!user);
+    $("auth-message").classList.add("hidden");
+    $("seasonal-panel").classList.add("hidden");
+    if (!user) return;
+    $("user-email").textContent=user.email||"";
+    const {data:profile}=await client.from("customer_profiles").select("*").eq("id",user.id).maybeSingle();
+    const name=profile?.full_name || user.user_metadata?.full_name || "Customer";
+    $("welcome").textContent="Welcome, "+name;
+    $("profile-name").value=profile?.full_name||user.user_metadata?.full_name||"";
+    $("profile-phone").value=profile?.phone||user.user_metadata?.phone||"";
+    $("profile-address").value=profile?.street_address||"";
+    $("extra-address").value=profile?.street_address||"";
+    $("season-address").value=profile?.street_address||"";
+    await loadPlan();
+    await loadRequests();
+  }
+  async function loadPlan() {
+    const {data,error}=await client.from("seasonal_signups").select("package_name,package_price,service_type,status,created_at,street_address").eq("user_id",user.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
+    const box=$("plan-summary"); box.replaceChildren();
+    if(error){box.textContent="Unable to load plan: "+errorText(error);return;}
+    if(!data){box.innerHTML='<strong>No seasonal package yet</strong><p class="muted">Choose a package to enroll for the season. You can still request a one-time plow-out separately.</p>';return;}
+    const title=document.createElement("strong");title.textContent=data.package_name+" package";
+    const price=document.createElement("div");price.className="plan-price";price.textContent="$"+data.package_price;
+    const meta=document.createElement("p");meta.className="muted";meta.textContent=data.service_type+" service · "+(data.status||"pending")+" · submitted "+new Date(data.created_at).toLocaleDateString();
+    box.append(title,price,meta);
+  }
+  async function loadRequests() {
+    const list=$("request-list");list.replaceChildren();
+    const {data,error}=await client.from("service_requests").select("id,service_address,requested_timing,notes,status,created_at,request_kind").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20);
+    if(error){list.textContent="Could not load requests: "+errorText(error);return;}
+    if(!data?.length){list.innerHTML='<p class="muted">No service requests yet.</p>';return;}
+    data.forEach(r=>{
+      const card=document.createElement("div");card.className="request";
+      const title=document.createElement("strong");title.textContent=r.request_kind==="extra_plowout"?"One-time plow-out":"Service request";
+      const address=document.createElement("div");address.textContent=r.service_address;
+      const small=document.createElement("small");small.textContent=r.requested_timing+" · "+new Date(r.created_at).toLocaleString();
+      const state=document.createElement("div");state.className="pill";state.style.marginTop="9px";state.textContent=(r.status||"pending").replaceAll("_"," ");
+      card.append(title,address,small,state);if(r.notes){const n=document.createElement("p");n.className="muted";n.textContent="Notes: "+r.notes;card.append(n);}list.append(card);
+    });
+  }
+  $("register-form").addEventListener("submit",async e=>{
+    e.preventDefault();const b=e.submitter;b.disabled=true;hideMessage($("auth-message"));
+    try{
+      const full_name=$("reg-name").value.trim(),phone=$("reg-phone").value.trim(),email=$("reg-email").value.trim(),password=$("reg-password").value;
+      const {data,error}=await client.auth.signUp({email,password,options:{data:{full_name,phone}}});
+      if(error)throw error;
+      if(!data.session){message($("auth-message"),"Account created, but Supabase is still requiring email confirmation. Turn off Confirm email in Supabase Authentication settings, then try again.");return;}
+      await client.from("customer_profiles").upsert({id:data.user.id,full_name,phone,email});
+      await refresh();
+    }catch(err){message($("auth-message"),errorText(err));}finally{b.disabled=false;}
+  });
+  $("login-form").addEventListener("submit",async e=>{
+    e.preventDefault();const b=e.submitter;b.disabled=true;hideMessage($("auth-message"));
+    try{const {error}=await client.auth.signInWithPassword({email:$("login-email").value.trim(),password:$("login-password").value});if(error)throw error;await refresh();}
+    catch(err){message($("auth-message"),errorText(err));}finally{b.disabled=false;}
+  });
+  $("forgot-password").addEventListener("click",async()=>{
+    const email=$("login-email").value.trim();if(!email){message($("auth-message"),"Enter your email address first.");return;}
+    const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.href});message($("auth-message"),error?errorText(error):"Password reset email sent.",!error);
+  });
+  $("logout").addEventListener("click",async()=>{await client.auth.signOut();await refresh();});
+  $("profile-form").addEventListener("submit",async e=>{
+    e.preventDefault();const {error}=await client.from("customer_profiles").upsert({id:user.id,full_name:$("profile-name").value.trim(),phone:$("profile-phone").value.trim(),email:user.email||"",street_address:$("profile-address").value.trim()});
+    message($("profile-message"),error?errorText(error):"Your account details were saved.",!error);if(!error){$("welcome").textContent="Welcome, "+$("profile-name").value.trim();$("extra-address").value=$("profile-address").value.trim();}
+  });
+  $("extra-form").addEventListener("submit",async e=>{
+    e.preventDefault();const b=$("extra-submit");b.disabled=true;hideMessage($("extra-message"));
+    try{
+      const request={user_id:user.id,service_address:$("extra-address").value.trim(),requested_timing:$("extra-when").value,notes:$("extra-notes").value.trim()||null,request_kind:"extra_plowout"};
+      const {error}=await client.from("service_requests").insert(request);if(error)throw error;
+      message($("extra-message"),"Your one-time plow-out request has been submitted. It is pending review; Huron Pines will contact you to confirm availability and payment.",true);
+      $("extra-notes").value="";await loadRequests();
+    }catch(err){message($("extra-message"),errorText(err));}finally{b.disabled=false;}
+  });
+  $("show-seasonal").addEventListener("click",()=>$("seasonal-panel").classList.remove("hidden"));
+  $("hide-seasonal").addEventListener("click",()=>$("seasonal-panel").classList.add("hidden"));
+  $("seasonal-form").addEventListener("submit",async e=>{
+    e.preventDefault();const b=$("season-submit");b.disabled=true;hideMessage($("season-message"));
+    try{
+      const pkg=$("season-package").value,prices={Essential:199,Plus:329,Complete:449};if(!prices[pkg])throw new Error("Choose a valid package.");
+      if(!$("season-terms").checked)throw new Error("Please agree to the service terms.");
+      const {data:profile}=await client.from("customer_profiles").select("full_name,phone").eq("id",user.id).maybeSingle();
+      const row={user_id:user.id,full_name:profile?.full_name||user.user_metadata?.full_name||"",phone:profile?.phone||user.user_metadata?.phone||"",email:user.email||"",street_address:$("season-address").value.trim(),package_name:pkg,service_type:$("season-method").value,notes:$("season-notes").value.trim()||null,agreed_to_terms:true,terms_accepted_at:new Date().toISOString(),package_price:prices[pkg],season:"2026-2027 (through March 1, 2027)"};
+      const {error}=await client.from("seasonal_signups").insert(row);if(error)throw error;
+      await client.from("customer_profiles").upsert({id:user.id,full_name:row.full_name,phone:row.phone,email:row.email,street_address:row.street_address});
+      message($("season-message"),"Seasonal signup submitted. Call 248-500-4692 to arrange upfront payment and confirmation.",true);await refresh();
+    }catch(err){message($("season-message"),errorText(err));}finally{b.disabled=false;}
+  });
+  client.auth.onAuthStateChange(()=>setTimeout(refresh,0));
+  refresh();
+</script>
+</body>
+</html>
