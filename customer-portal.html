@@ -52,6 +52,16 @@
     .muted{color:var(--muted);font-size:14px;line-height:1.5}
     .divider{height:1px;background:var(--line);margin:22px 0}
     .notice{background:#fff8e8;border:1px solid #f2dfb4;color:#75531b;padding:14px;border-radius:12px;font-size:13px;line-height:1.5;margin-top:14px}
+
+    .modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(8,25,38,.68);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+    .modal-card{width:min(780px,100%);max-height:calc(100vh - 40px);overflow-y:auto;position:relative;margin:auto;padding:26px}
+    .modal-card .dashboard-head{align-items:flex-start}
+    .plan-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
+    .plan-actions select{max-width:220px}
+    .btn.danger{background:#a63832;color:#fff}
+    .btn.small{padding:9px 12px;font-size:13px}
+    .request-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    body.modal-open{overflow:hidden}
     @media(max-width:760px){.auth-grid,.grid{grid-template-columns:1fr}.hero{padding:27px 23px}.shell{padding:18px 14px 40px}.panel{padding:20px}.hero:after{right:-15px}}
   </style>
 </head>
@@ -146,18 +156,37 @@
     </section>
   </main>
 
-  <section id="seasonal-panel" class="panel hidden" style="margin-top:22px">
-    <div class="dashboard-head"><div><h2>Choose your seasonal package</h2><p class="sub">2026–27 season · December 1, 2026 – March 1, 2027</p></div><button id="hide-seasonal" class="btn outline">Close</button></div>
-    <form id="seasonal-form" class="grid">
-      <div><label for="season-package">Package</label><select id="season-package" required><option value="">Choose package</option><option value="Essential">Essential — $199 · 5 plow-outs</option><option value="Plus">Plus — $329 · 10 plow-outs</option><option value="Complete">Complete — $449 · 15 plow-outs</option></select>
-      <label for="season-method">Service method</label><select id="season-method" required><option value="Automatic">Automatic</option><option value="On-demand">On-demand</option></select>
-      <label for="season-address">Property address</label><input id="season-address" required maxlength="200">
-      <label for="season-notes">Property notes (optional)</label><textarea id="season-notes" rows="3" maxlength="500"></textarea></div>
-      <div><p class="muted">By submitting, you agree that automatic service is triggered at 2 inches of accumulated snowfall, on-demand and one-time requests are subject to availability, service hours are 6 AM–10 PM subject to safe operating conditions, and seasonal payment is due upfront. Payment is arranged separately by phone.</p>
-      <label style="display:flex;gap:10px;align-items:flex-start"><input id="season-terms" type="checkbox" required style="width:19px;min-height:19px;margin:2px 0">I agree to the customer service agreement.</label>
-      <button id="season-submit" class="btn primary full" type="submit">Submit seasonal signup</button></div>
-    </form>
-    <div id="season-message" class="status hidden" role="status" aria-live="polite"></div>
+  <section id="seasonal-panel" class="modal-overlay hidden" role="presentation" aria-hidden="true">
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="seasonal-heading">
+      <div class="dashboard-head">
+        <div><h2 id="seasonal-heading">Choose your seasonal package</h2><p class="sub">2026–27 season · December 1, 2026 – March 1, 2027</p></div>
+        <button id="hide-seasonal" type="button" class="btn outline">Close</button>
+      </div>
+      <form id="seasonal-form" class="grid">
+        <div>
+          <label for="season-package">Package</label>
+          <select id="season-package" required>
+            <option value="">Choose package</option>
+            <option value="Essential">Essential — $199 · 5 plow-outs</option>
+            <option value="Plus">Plus — $329 · 10 plow-outs</option>
+            <option value="Complete">Complete — $449 · 15 plow-outs</option>
+          </select>
+          <label for="season-method">Service method</label>
+          <select id="season-method" required>
+            <option value="Automatic">Automatic</option>
+            <option value="On-demand">Manual / On-demand</option>
+          </select>
+          <label for="season-address">Property address</label><input id="season-address" required maxlength="200">
+          <label for="season-notes">Property notes (optional)</label><textarea id="season-notes" rows="3" maxlength="500"></textarea>
+        </div>
+        <div>
+          <p class="muted">Automatic service is triggered at 2 inches of accumulated snowfall. Manual / on-demand and one-time requests are subject to availability. Service hours are 6 AM–10 PM subject to safe operating conditions. Seasonal payment is due upfront and arranged separately by phone.</p>
+          <label style="display:flex;gap:10px;align-items:flex-start"><input id="season-terms" type="checkbox" required style="width:19px;min-height:19px;margin:2px 0">I agree to the customer service agreement.</label>
+          <button id="season-submit" class="btn primary full" type="submit">Submit seasonal signup</button>
+        </div>
+      </form>
+      <div id="season-message" class="status hidden" role="status" aria-live="polite"></div>
+    </div>
   </section>
 </div>
 <script>
@@ -180,7 +209,7 @@
     $("auth-view").classList.toggle("hidden",!!user);
     $("dashboard").classList.toggle("hidden",!user);
     $("auth-message").classList.add("hidden");
-    $("seasonal-panel").classList.add("hidden");
+    closeSeasonalModal();
     if (!user) return;
     $("user-email").textContent=user.email||"";
     const {data:profile}=await client.from("customer_profiles").select("*").eq("id",user.id).maybeSingle();
@@ -195,29 +224,177 @@
     await loadRequests();
   }
   async function loadPlan() {
-    const {data,error}=await client.from("seasonal_signups").select("package_name,package_price,service_type,status,created_at,street_address").eq("user_id",user.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
-    const box=$("plan-summary"); box.replaceChildren();
-    if(error){box.textContent="Unable to load plan: "+errorText(error);return;}
-    if(!data){box.innerHTML='<strong>No seasonal package yet</strong><p class="muted">Choose a package to enroll for the season. You can still request a one-time plow-out separately.</p>';return;}
-    const title=document.createElement("strong");title.textContent=data.package_name+" package";
-    const price=document.createElement("div");price.className="plan-price";price.textContent="$"+data.package_price;
-    const meta=document.createElement("p");meta.className="muted";meta.textContent=data.service_type+" service · "+(data.status||"pending")+" · submitted "+new Date(data.created_at).toLocaleDateString();
-    box.append(title,price,meta);
+    const {data, error} = await client
+      .from("seasonal_signups")
+      .select("id,package_name,package_price,service_type,status,created_at,street_address")
+      .eq("user_id", user.id)
+      .order("created_at", {ascending:false})
+      .limit(1)
+      .maybeSingle();
+
+    const box = $("plan-summary");
+    box.replaceChildren();
+
+    if (error) {
+      box.textContent = "Unable to load plan: " + errorText(error);
+      return;
+    }
+
+    if (!data) {
+      const title = document.createElement("strong");
+      title.textContent = "No seasonal package yet";
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "Choose a package to enroll for the season. You can still request a one-time plow-out separately.";
+      box.append(title, note);
+      return;
+    }
+
+    const title = document.createElement("strong");
+    title.textContent = data.package_name + " package";
+    const price = document.createElement("div");
+    price.className = "plan-price";
+    price.textContent = "$" + data.package_price;
+    const meta = document.createElement("p");
+    meta.className = "muted";
+    meta.textContent = data.service_type + " service · " + (data.status || "pending") +
+      " · submitted " + new Date(data.created_at).toLocaleDateString();
+    const address = document.createElement("p");
+    address.className = "muted";
+    address.textContent = "Service address: " + data.street_address;
+    box.append(title, price, meta, address);
+
+    if (!["cancelled", "completed", "expired"].includes((data.status || "").toLowerCase())) {
+      const actions = document.createElement("div");
+      actions.className = "plan-actions";
+
+      const methodSelect = document.createElement("select");
+      methodSelect.id = "plan-method-select";
+      methodSelect.setAttribute("aria-label", "Seasonal service method");
+      methodSelect.innerHTML = '<option value="Automatic">Automatic</option><option value="On-demand">Manual / On-demand</option>';
+      methodSelect.value = data.service_type;
+
+      const saveMethod = document.createElement("button");
+      saveMethod.type = "button";
+      saveMethod.className = "btn outline small";
+      saveMethod.textContent = "Save service method";
+      saveMethod.addEventListener("click", async () => {
+        saveMethod.disabled = true;
+        try {
+          const {error} = await client.rpc("update_seasonal_service_type", {
+            p_signup_id: data.id,
+            p_service_type: methodSelect.value
+          });
+          if (error) throw error;
+          await loadPlan();
+          message($("profile-message"), "Your seasonal service method was updated.", true);
+        } catch (err) {
+          message($("profile-message"), errorText(err));
+        } finally {
+          saveMethod.disabled = false;
+        }
+      });
+
+      const cancelPlan = document.createElement("button");
+      cancelPlan.type = "button";
+      cancelPlan.className = "btn danger small";
+      cancelPlan.textContent = "Cancel seasonal plan";
+      cancelPlan.addEventListener("click", async () => {
+        const confirmed = window.confirm("Are you sure you want to cancel this seasonal plan? This cannot be undone from the portal.");
+        if (!confirmed) return;
+        cancelPlan.disabled = true;
+        try {
+          const {error} = await client.rpc("cancel_seasonal_plan", {p_signup_id: data.id});
+          if (error) throw error;
+          await loadPlan();
+          message($("profile-message"), "Your seasonal plan has been cancelled.", true);
+        } catch (err) {
+          message($("profile-message"), errorText(err));
+        } finally {
+          cancelPlan.disabled = false;
+        }
+      });
+
+      actions.append(methodSelect, saveMethod, cancelPlan);
+      box.append(actions);
+    } else {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "This seasonal plan is no longer active.";
+      box.append(note);
+    }
   }
+
   async function loadRequests() {
-    const list=$("request-list");list.replaceChildren();
-    const {data,error}=await client.from("service_requests").select("id,service_address,requested_timing,notes,status,created_at,request_kind").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20);
-    if(error){list.textContent="Could not load requests: "+errorText(error);return;}
-    if(!data?.length){list.innerHTML='<p class="muted">No service requests yet.</p>';return;}
-    data.forEach(r=>{
-      const card=document.createElement("div");card.className="request";
-      const title=document.createElement("strong");title.textContent=r.request_kind==="extra_plowout"?"One-time plow-out":"Service request";
-      const address=document.createElement("div");address.textContent=r.service_address;
-      const small=document.createElement("small");small.textContent=r.requested_timing+" · "+new Date(r.created_at).toLocaleString();
-      const state=document.createElement("div");state.className="pill";state.style.marginTop="9px";state.textContent=(r.status||"pending").replaceAll("_"," ");
-      card.append(title,address,small,state);if(r.notes){const n=document.createElement("p");n.className="muted";n.textContent="Notes: "+r.notes;card.append(n);}list.append(card);
+    const list = $("request-list");
+    list.replaceChildren();
+    const {data, error} = await client
+      .from("service_requests")
+      .select("id,service_address,requested_timing,notes,status,created_at,request_kind")
+      .eq("user_id", user.id)
+      .order("created_at", {ascending:false})
+      .limit(20);
+
+    if (error) {
+      list.textContent = "Could not load requests: " + errorText(error);
+      return;
+    }
+    if (!data?.length) {
+      list.innerHTML = '<p class="muted">No service requests yet.</p>';
+      return;
+    }
+
+    data.forEach(r => {
+      const card = document.createElement("div");
+      card.className = "request";
+      const title = document.createElement("strong");
+      title.textContent = r.request_kind === "extra_plowout" ? "One-time plow-out" : "Service request";
+      const address = document.createElement("div");
+      address.textContent = r.service_address;
+      const small = document.createElement("small");
+      small.textContent = r.requested_timing + " · " + new Date(r.created_at).toLocaleString();
+      const state = document.createElement("div");
+      state.className = "pill";
+      state.style.marginTop = "9px";
+      state.textContent = (r.status || "pending").replaceAll("_", " ");
+      card.append(title, address, small, state);
+
+      if (r.notes) {
+        const n = document.createElement("p");
+        n.className = "muted";
+        n.textContent = "Notes: " + r.notes;
+        card.append(n);
+      }
+
+      if (["pending", "accepted", "scheduled"].includes((r.status || "").toLowerCase())) {
+        const actions = document.createElement("div");
+        actions.className = "request-actions";
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "btn danger small";
+        cancel.textContent = "Cancel request";
+        cancel.addEventListener("click", async () => {
+          if (!window.confirm("Cancel this service request?")) return;
+          cancel.disabled = true;
+          try {
+            const {error} = await client.rpc("cancel_service_request", {p_request_id: r.id});
+            if (error) throw error;
+            await loadRequests();
+            message($("extra-message"), "Your service request has been cancelled.", true);
+          } catch (err) {
+            message($("extra-message"), errorText(err));
+          } finally {
+            cancel.disabled = false;
+          }
+        });
+        actions.append(cancel);
+        card.append(actions);
+      }
+
+      list.append(card);
     });
   }
+
   $("register-form").addEventListener("submit",async e=>{
     e.preventDefault();const b=e.submitter;b.disabled=true;hideMessage($("auth-message"));
     try{
@@ -241,7 +418,7 @@
     passwordRecoveryActive = true;
     $("auth-view").classList.add("hidden");
     $("dashboard").classList.add("hidden");
-    $("seasonal-panel").classList.add("hidden");
+    closeSeasonalModal();
     $("auth-message").classList.add("hidden");
     $("password-reset-panel").classList.remove("hidden");
     $("reset-password").focus();
@@ -329,8 +506,32 @@
       $("extra-notes").value="";await loadRequests();
     }catch(err){message($("extra-message"),errorText(err));}finally{b.disabled=false;}
   });
-  $("show-seasonal").addEventListener("click",()=>$("seasonal-panel").classList.remove("hidden"));
-  $("hide-seasonal").addEventListener("click",()=>$("seasonal-panel").classList.add("hidden"));
+  function openSeasonalModal() {
+    $("season-message").classList.add("hidden");
+    $("seasonal-panel").classList.remove("hidden");
+    $("seasonal-panel").setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    $("season-package").focus();
+  }
+
+  function closeSeasonalModal() {
+    const modal = $("seasonal-panel");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+  }
+
+  $("show-seasonal").addEventListener("click", openSeasonalModal);
+  $("hide-seasonal").addEventListener("click", closeSeasonalModal);
+  $("seasonal-panel").addEventListener("click", (event) => {
+    if (event.target === $("seasonal-panel")) closeSeasonalModal();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("seasonal-panel").classList.contains("hidden")) {
+      closeSeasonalModal();
+    }
+  });
   $("seasonal-form").addEventListener("submit",async e=>{
     e.preventDefault();const b=$("season-submit");b.disabled=true;hideMessage($("season-message"));
     try{
@@ -340,7 +541,9 @@
       const row={user_id:user.id,full_name:profile?.full_name||user.user_metadata?.full_name||"",phone:profile?.phone||user.user_metadata?.phone||"",email:user.email||"",street_address:$("season-address").value.trim(),package_name:pkg,service_type:$("season-method").value,notes:$("season-notes").value.trim()||null,agreed_to_terms:true,terms_accepted_at:new Date().toISOString(),package_price:prices[pkg],season:"2026-2027 (through March 1, 2027)"};
       const {error}=await client.from("seasonal_signups").insert(row);if(error)throw error;
       await client.from("customer_profiles").upsert({id:user.id,full_name:row.full_name,phone:row.phone,email:row.email,street_address:row.street_address});
-      message($("season-message"),"Seasonal signup submitted. Call 248-500-4692 to arrange upfront payment and confirmation.",true);await refresh();
+      message($("season-message"),"Seasonal signup submitted. Call 248-500-4692 to arrange upfront payment and confirmation.",true);
+      $("seasonal-form").reset();
+      await refresh();
     }catch(err){message($("season-message"),errorText(err));}finally{b.disabled=false;}
   });
   // Supabase emits PASSWORD_RECOVERY after a valid recovery link is opened.
