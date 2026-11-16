@@ -188,6 +188,28 @@
       <div id="season-message" class="status hidden" role="status" aria-live="polite"></div>
     </div>
   </section>
+
+  <!-- Center-screen seasonal cancellation confirmation -->
+  <section id="cancel-plan-modal" class="modal-overlay hidden" role="presentation" aria-hidden="true">
+    <div class="modal-card panel" style="width:min(460px,100%)" role="dialog" aria-modal="true" aria-labelledby="cancel-plan-heading">
+      <h2 id="cancel-plan-heading">Cancel seasonal plan?</h2>
+      <p class="sub" style="margin-top:10px">Are you sure that you want to cancel your seasonal plan? This will remove your seasonal signup from your account and cannot be undone.</p>
+      <div class="plan-actions" style="justify-content:flex-end">
+        <button id="keep-seasonal-plan" type="button" class="btn outline">Keep plan</button>
+        <button id="confirm-cancel-seasonal-plan" type="button" class="btn danger">Yes, cancel plan</button>
+      </div>
+      <div id="cancel-plan-error" class="status hidden" role="alert" aria-live="assertive"></div>
+    </div>
+  </section>
+
+  <section id="cancel-success-modal" class="modal-overlay hidden" role="presentation" aria-hidden="true">
+    <div class="modal-card panel" style="width:min(460px,100%);text-align:center" role="dialog" aria-modal="true" aria-labelledby="cancel-success-heading">
+      <div class="icon" style="width:48px;height:48px;margin:0 auto 14px;border-radius:50%;font-size:23px">✓</div>
+      <h2 id="cancel-success-heading">Seasonal plan cancelled</h2>
+      <p class="sub" style="margin-top:10px">Your seasonal plan has been successfully cancelled and removed from your account.</p>
+      <button id="close-cancel-success" type="button" class="btn primary full">Done</button>
+    </div>
+  </section>
 </div>
 <script>
   const SUPABASE_URL = "https://jldqxtaswbbvkovvpoma.supabase.co";
@@ -195,6 +217,7 @@
   const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
   const $ = id => document.getElementById(id);
   let user = null;
+  let pendingSeasonalSignupId = null;
 
   function message(el, text, ok=false) { el.textContent=text; el.className="status"+(ok?" ok":""); }
   function hideMessage(el) { el.textContent=""; el.classList.add("hidden"); }
@@ -282,7 +305,7 @@
         saveMethod.disabled = true;
         try {
           const {error} = await client.rpc("update_seasonal_service_type", {
-            p_signup_id: data.id,
+            p_signup_id: Number(data.id),
             p_service_type: methodSelect.value
           });
           if (error) throw error;
@@ -299,20 +322,9 @@
       cancelPlan.type = "button";
       cancelPlan.className = "btn danger small";
       cancelPlan.textContent = "Cancel seasonal plan";
-      cancelPlan.addEventListener("click", async () => {
-        const confirmed = window.confirm("Are you sure you want to cancel this seasonal plan? This cannot be undone from the portal.");
-        if (!confirmed) return;
-        cancelPlan.disabled = true;
-        try {
-          const {error} = await client.rpc("cancel_seasonal_plan", {p_signup_id: data.id});
-          if (error) throw error;
-          await loadPlan();
-          message($("profile-message"), "Your seasonal plan has been cancelled.", true);
-        } catch (err) {
-          message($("profile-message"), errorText(err));
-        } finally {
-          cancelPlan.disabled = false;
-        }
+      cancelPlan.addEventListener("click", () => {
+        pendingSeasonalSignupId = Number(data.id);
+        openCancelPlanModal();
       });
 
       actions.append(methodSelect, saveMethod, cancelPlan);
@@ -506,6 +518,72 @@
       $("extra-notes").value="";await loadRequests();
     }catch(err){message($("extra-message"),errorText(err));}finally{b.disabled=false;}
   });
+  function openCancelPlanModal() {
+    hideMessage($("cancel-plan-error"));
+    $("cancel-plan-modal").classList.remove("hidden");
+    $("cancel-plan-modal").setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    $("keep-seasonal-plan").focus();
+  }
+
+  function closeCancelPlanModal() {
+    const modal = $("cancel-plan-modal");
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    if ($("seasonal-panel").classList.contains("hidden") && $("cancel-success-modal").classList.contains("hidden")) {
+      document.body.classList.remove("modal-open");
+    }
+  }
+
+  function openCancelSuccessModal() {
+    $("cancel-success-modal").classList.remove("hidden");
+    $("cancel-success-modal").setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    $("close-cancel-success").focus();
+  }
+
+  function closeCancelSuccessModal() {
+    $("cancel-success-modal").classList.add("hidden");
+    $("cancel-success-modal").setAttribute("aria-hidden", "true");
+    if ($("seasonal-panel").classList.contains("hidden") && $("cancel-plan-modal").classList.contains("hidden")) {
+      document.body.classList.remove("modal-open");
+    }
+  }
+
+  $("keep-seasonal-plan").addEventListener("click", closeCancelPlanModal);
+  $("close-cancel-success").addEventListener("click", closeCancelSuccessModal);
+  $("confirm-cancel-seasonal-plan").addEventListener("click", async () => {
+    const button = $("confirm-cancel-seasonal-plan");
+    if (!pendingSeasonalSignupId) {
+      message($("cancel-plan-error"), "The seasonal signup could not be identified. Refresh the page and try again.");
+      return;
+    }
+    button.disabled = true;
+    hideMessage($("cancel-plan-error"));
+    try {
+      const { error } = await client.rpc("cancel_seasonal_plan", {
+        p_signup_id: pendingSeasonalSignupId
+      });
+      if (error) throw error;
+
+      pendingSeasonalSignupId = null;
+      closeCancelPlanModal();
+      await loadPlan();
+      openCancelSuccessModal();
+    } catch (err) {
+      message($("cancel-plan-error"), errorText(err));
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $("cancel-plan-modal").addEventListener("click", event => {
+    if (event.target === $("cancel-plan-modal")) closeCancelPlanModal();
+  });
+  $("cancel-success-modal").addEventListener("click", event => {
+    if (event.target === $("cancel-success-modal")) closeCancelSuccessModal();
+  });
+
   function openSeasonalModal() {
     $("season-message").classList.add("hidden");
     $("seasonal-panel").classList.remove("hidden");
@@ -528,9 +606,10 @@
     if (event.target === $("seasonal-panel")) closeSeasonalModal();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !$("seasonal-panel").classList.contains("hidden")) {
-      closeSeasonalModal();
-    }
+    if (event.key !== "Escape") return;
+    if (!$("cancel-success-modal").classList.contains("hidden")) closeCancelSuccessModal();
+    else if (!$("cancel-plan-modal").classList.contains("hidden")) closeCancelPlanModal();
+    else if (!$("seasonal-panel").classList.contains("hidden")) closeSeasonalModal();
   });
   $("seasonal-form").addEventListener("submit",async e=>{
     e.preventDefault();const b=$("season-submit");b.disabled=true;hideMessage($("season-message"));
